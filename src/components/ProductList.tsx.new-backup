@@ -1,0 +1,1094 @@
+import React, { useState, useEffect } from 'react';
+import { ExtendedProduct, CustomField, Product } from '../types/Product';
+import { 
+    Table, 
+    TableBody, 
+    TableCell, 
+    TableContainer, 
+    TableHead, 
+    TableRow, 
+    Paper,
+    Typography,
+    Box,
+    TableSortLabel,
+    Chip,
+    IconButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    Tooltip,
+    Menu,
+    MenuItem,
+    Checkbox,
+    ListItemText,
+    Divider,
+    InputAdornment,
+    Badge,
+    Card,
+    CardContent,
+    Drawer,
+    Collapse,
+    Select,
+    FormControl,
+    InputLabel,
+    OutlinedInput,
+    TablePagination
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import AddIcon from '@mui/icons-material/Add';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteIcon from '@mui/icons-material/Delete';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+
+interface ProductListProps {
+    products: ExtendedProduct[];
+    onAddCustomField: (product: ExtendedProduct) => void;
+}
+
+type SortDirection = 'asc' | 'desc';
+
+type SortableField = keyof Omit<ExtendedProduct, 'customFields'>;
+
+const isValidField = (field: string): field is SortableField => {
+    return field === 'id' || /^feld([1-9]|1\d|20)$/.test(field);
+};
+
+interface SortConfig {
+    field: SortableField;
+    direction: SortDirection;
+}
+
+interface ColumnFilter {
+    [key: string]: Set<string>;
+}
+
+interface FilterMenuProps {
+    anchorEl: HTMLElement | null;
+    onClose: () => void;
+    values: string[];
+    selectedValues: Set<string>;
+    onValuesChange: (values: Set<string>) => void;
+    fieldName: string;
+}
+
+interface GroupSortConfig {
+    enabled: boolean;
+    direction: SortDirection;
+}
+
+const COLORS = {
+    bg: {
+        primary: '#0d1117',
+        secondary: '#161b22',
+        tertiary: '#21262d',
+        hover: '#1f2428',
+        selected: 'rgba(56, 139, 253, 0.1)',
+        selectedHover: 'rgba(56, 139, 253, 0.15)',
+    },
+    text: {
+        primary: '#c9d1d9',
+        secondary: '#8b949e',
+    },
+    border: {
+        primary: '#30363d',
+    },
+    accent: {
+        blue: '#58a6ff',
+        green: '#238636',
+        red: '#f85149',
+    },
+};
+
+const StyledTable = styled(Table)(({ theme }) => ({
+    minWidth: 650,
+    backgroundColor: COLORS.bg.primary,
+    '& .MuiTableCell-root': {
+        whiteSpace: 'nowrap',
+        padding: '12px 16px',
+        fontSize: '14px',
+        borderBottom: `1px solid ${COLORS.border.primary}`,
+        color: COLORS.text.primary,
+        width: 'auto',
+        minWidth: '200px',
+        height: '60px',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+    },
+    '& .MuiTableCell-paddingCheckbox': {
+        width: '40px',
+        padding: '12px 8px 12px 16px',
+        height: '60px',
+    },
+    '& .MuiCheckbox-root': {
+        padding: '2px',
+        '& .MuiSvgIcon-root': {
+            fontSize: '20px',
+        },
+    },
+}));
+
+const HeaderCell = styled(TableCell)(({ theme }) => ({
+    backgroundColor: COLORS.bg.secondary,
+    color: COLORS.text.primary,
+    fontWeight: 600,
+    position: 'sticky',
+    top: 0,
+    zIndex: 1,
+    cursor: 'pointer',
+    height: '60px',
+    borderBottom: `1px solid ${COLORS.border.primary}`,
+    padding: '12px 16px !important',
+    '&:hover': {
+        backgroundColor: COLORS.bg.tertiary,
+    },
+    '& .MuiTableSortLabel-root': {
+        color: COLORS.text.primary,
+        width: '100%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: 0,
+    },
+    '& .MuiTableSortLabel-root.Mui-active': {
+        color: COLORS.accent.blue,
+        fontWeight: 600,
+    },
+    '& .MuiTableSortLabel-icon': {
+        color: `${COLORS.text.secondary} !important`,
+        opacity: 0.5,
+    },
+}));
+
+const DataCell = styled(TableCell)(({ theme }) => ({
+    color: COLORS.text.primary,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    fontSize: '14px',
+    height: '60px',
+    padding: '12px 16px',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+        backgroundColor: COLORS.bg.tertiary,
+    },
+    '& .group-tag': {
+        display: 'inline-block',
+        padding: '2px 8px',
+        borderRadius: '12px',
+        backgroundColor: '#1f6feb33',
+        color: COLORS.accent.blue,
+        fontSize: '12px',
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+    }
+}));
+
+const StyledTableRow = styled(TableRow)({
+    '&:nth-of-type(even)': {
+        backgroundColor: COLORS.bg.primary,
+    },
+    '&:nth-of-type(odd)': {
+        backgroundColor: COLORS.bg.secondary,
+    },
+    '&:hover': {
+        backgroundColor: COLORS.bg.tertiary,
+    },
+    '&.deactivated': {
+        opacity: 0.6,
+        backgroundColor: `${COLORS.bg.tertiary} !important`,
+        position: 'relative',
+        '&::after': {
+            content: '"Deactivated"',
+            position: 'absolute',
+            right: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: '12px',
+            color: COLORS.text.secondary,
+            fontStyle: 'italic',
+        }
+    },
+});
+
+const StyledTableContainer = styled(TableContainer)({
+    border: `1px solid ${COLORS.border.primary}`,
+    borderRadius: '6px',
+    boxShadow: 'none',
+    backgroundColor: COLORS.bg.primary,
+    '&::-webkit-scrollbar': {
+        height: '8px',
+        width: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+        backgroundColor: COLORS.bg.secondary,
+        borderRadius: '4px',
+    },
+    '&::-webkit-scrollbar-thumb': {
+        backgroundColor: COLORS.border.primary,
+        borderRadius: '4px',
+        border: `2px solid ${COLORS.bg.secondary}`,
+        '&:hover': {
+            backgroundColor: COLORS.bg.tertiary,
+        },
+    },
+});
+
+const TagCloud = styled(Box)({
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginBottom: '24px',
+    padding: '16px',
+    backgroundColor: COLORS.bg.secondary,
+    border: `1px solid ${COLORS.border.primary}`,
+    borderRadius: '6px',
+});
+
+const FieldTag = styled(Chip)(({ theme, selected }: { theme?: any, selected: boolean }) => ({
+    backgroundColor: selected ? '#1f6feb33' : COLORS.bg.tertiary,
+    color: selected ? COLORS.accent.blue : COLORS.text.secondary,
+    border: `1px solid ${selected ? '#1f6feb66' : COLORS.border.primary}`,
+    fontWeight: selected ? 600 : 400,
+    '&:hover': {
+        backgroundColor: selected ? '#1f6feb44' : COLORS.bg.hover,
+    },
+    '& .MuiChip-deleteIcon': {
+        color: selected ? COLORS.accent.blue : COLORS.text.secondary,
+        '&:hover': {
+            color: selected ? COLORS.accent.blue : COLORS.text.primary,
+        },
+    },
+}));
+
+interface AddColumnDialogProps {
+    open: boolean;
+    onClose: () => void;
+    onAdd: (columnName: string, columnLabel: string) => void;
+}
+
+const AddColumnDialog: React.FC<AddColumnDialogProps> = ({ open, onClose, onAdd }) => {
+    const [columnName, setColumnName] = useState('');
+    const [columnLabel, setColumnLabel] = useState('');
+
+    const handleAdd = () => {
+        if (columnName && columnLabel) {
+            onAdd(columnName, columnLabel);
+            setColumnName('');
+            setColumnLabel('');
+            onClose();
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose}>
+            <DialogTitle>Add Custom Column</DialogTitle>
+            <DialogContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Column Name"
+                        value={columnName}
+                        onChange={(e) => setColumnName(e.target.value)}
+                        placeholder="e.g., habitat_notes"
+                        helperText="Internal name, use lowercase and underscores"
+                    />
+                    <TextField
+                        label="Column Label"
+                        value={columnLabel}
+                        onChange={(e) => setColumnLabel(e.target.value)}
+                        placeholder="e.g., Habitat Notes"
+                        helperText="Display name shown in the table header"
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Cancel</Button>
+                <Button onClick={handleAdd} variant="contained" disabled={!columnName || !columnLabel}>
+                    Add Column
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+interface EditCellDialogProps {
+    open: boolean;
+    onClose: () => void;
+    onSave: (value: string) => void;
+    currentValue?: string;
+    fieldLabel: string;
+}
+
+const EditCellDialog: React.FC<EditCellDialogProps> = ({ open, onClose, onSave, currentValue = '', fieldLabel }) => {
+    const [value, setValue] = useState(currentValue);
+
+    React.useEffect(() => {
+        setValue(currentValue);
+    }, [currentValue]);
+
+    const handleSave = () => {
+        onSave(value);
+        onClose();
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose}>
+            <DialogTitle>Edit {fieldLabel}</DialogTitle>
+            <DialogContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Value"
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        placeholder={`Enter ${fieldLabel.toLowerCase()}`}
+                        multiline
+                        rows={3}
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Cancel</Button>
+                <Button onClick={handleSave} variant="contained">
+                    Save
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+interface EditColumnDialogProps {
+    open: boolean;
+    onClose: () => void;
+    onSave: (oldName: string, newName: string, newLabel: string) => void;
+    columnName: string;
+    columnLabel: string;
+}
+
+const EditColumnDialog: React.FC<EditColumnDialogProps> = ({ open, onClose, onSave, columnName, columnLabel }) => {
+    const [newName, setNewName] = useState(columnName);
+    const [newLabel, setNewLabel] = useState(columnLabel);
+
+    useEffect(() => {
+        setNewName(columnName);
+        setNewLabel(columnLabel);
+    }, [columnName, columnLabel]);
+
+    const handleSave = () => {
+        if (newName && newLabel) {
+            onSave(columnName, newName.toLowerCase().replace(/\s+/g, '_'), newLabel);
+            onClose();
+        }
+    };
+
+    return (
+        <Dialog 
+            open={open} 
+            onClose={onClose}
+            PaperProps={{
+                sx: {
+                    backgroundColor: COLORS.bg.secondary,
+                    color: COLORS.text.primary,
+                    border: `1px solid ${COLORS.border.primary}`,
+                    borderRadius: '6px',
+                    minWidth: '400px',
+                }
+            }}
+        >
+            <DialogTitle sx={{ 
+                borderBottom: `1px solid ${COLORS.border.primary}`,
+                color: COLORS.text.primary,
+                fontSize: '16px',
+                fontWeight: 600,
+            }}>
+                Edit Column
+            </DialogTitle>
+            <DialogContent sx={{ mt: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Column Name"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="e.g., habitat_notes"
+                        helperText="Internal name, use lowercase and underscores"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                color: COLORS.text.primary,
+                                '& fieldset': {
+                                    borderColor: COLORS.border.primary,
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: COLORS.text.secondary,
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: COLORS.accent.blue,
+                                },
+                            },
+                            '& .MuiInputLabel-root': {
+                                color: COLORS.text.secondary,
+                                '&.Mui-focused': {
+                                    color: COLORS.accent.blue,
+                                },
+                            },
+                            '& .MuiFormHelperText-root': {
+                                color: COLORS.text.secondary,
+                            },
+                        }}
+                    />
+                    <TextField
+                        label="Column Label"
+                        value={newLabel}
+                        onChange={(e) => setNewLabel(e.target.value)}
+                        placeholder="e.g., Habitat Notes"
+                        helperText="Display name shown in the table header"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                color: COLORS.text.primary,
+                                '& fieldset': {
+                                    borderColor: COLORS.border.primary,
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: COLORS.text.secondary,
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: COLORS.accent.blue,
+                                },
+                            },
+                            '& .MuiInputLabel-root': {
+                                color: COLORS.text.secondary,
+                                '&.Mui-focused': {
+                                    color: COLORS.accent.blue,
+                                },
+                            },
+                            '& .MuiFormHelperText-root': {
+                                color: COLORS.text.secondary,
+                            },
+                        }}
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions sx={{ 
+                borderTop: `1px solid ${COLORS.border.primary}`,
+                padding: 2,
+            }}>
+                <Button 
+                    onClick={onClose}
+                    sx={{
+                        color: COLORS.text.secondary,
+                        '&:hover': {
+                            color: COLORS.text.primary,
+                            backgroundColor: 'transparent',
+                        },
+                    }}
+                >
+                    Cancel
+                </Button>
+                <Button 
+                    onClick={handleSave} 
+                    variant="contained" 
+                    disabled={!newName || !newLabel}
+                    sx={{
+                        backgroundColor: COLORS.accent.blue,
+                        color: COLORS.text.primary,
+                        '&:hover': {
+                            backgroundColor: '#1f6feb',
+                        },
+                        '&.Mui-disabled': {
+                            backgroundColor: `${COLORS.accent.blue}40`,
+                            color: `${COLORS.text.primary}80`,
+                        },
+                    }}
+                >
+                    Save Changes
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+const DownloadButton = styled(Button)(({ theme }) => ({
+    marginBottom: theme.spacing(2),
+    backgroundColor: '#2da44e',
+    color: '#ffffff',
+    border: '1px solid rgba(27, 31, 36, 0.15)',
+    '&:hover': {
+        backgroundColor: '#2c974b',
+    },
+}));
+
+const FilterMenu: React.FC<FilterMenuProps> = ({
+    anchorEl,
+    onClose,
+    values,
+    selectedValues,
+    onValuesChange,
+    fieldName,
+}) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    const filteredValues = values.filter(value => 
+        value.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleToggle = (value: string) => {
+        const newSelected = new Set(selectedValues);
+        if (newSelected.has(value)) {
+            newSelected.delete(value);
+        } else {
+            newSelected.add(value);
+        }
+        onValuesChange(newSelected);
+    };
+
+    const handleSelectAll = () => {
+        if (selectedValues.size === values.length) {
+            onValuesChange(new Set());
+        } else {
+            onValuesChange(new Set(values));
+        }
+    };
+
+    const handleClear = () => {
+        setSearchTerm('');
+    };
+
+    return (
+        <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={onClose}
+            PaperProps={{
+                sx: {
+                    maxHeight: 300,
+                    width: 250,
+                }
+            }}
+        >
+            <Box sx={{ p: 1 }}>
+                <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Search values..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon fontSize="small" />
+                            </InputAdornment>
+                        ),
+                        endAdornment: searchTerm && (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleClear}
+                                >
+                                    <ClearIcon fontSize="small" />
+                                </IconButton>
+                            </InputAdornment>
+                        )
+                    }}
+                />
+            </Box>
+            <Divider />
+            <MenuItem onClick={handleSelectAll}>
+                <Checkbox
+                    checked={selectedValues.size === values.length}
+                    indeterminate={selectedValues.size > 0 && selectedValues.size < values.length}
+                />
+                <ListItemText primary="Select All" />
+            </MenuItem>
+            <Divider />
+            {filteredValues.map((value) => (
+                <MenuItem key={value} onClick={() => handleToggle(value)}>
+                    <Checkbox checked={selectedValues.has(value)} />
+                    <ListItemText primary={value || '(Empty)'} />
+                </MenuItem>
+            ))}
+        </Menu>
+    );
+};
+
+const ControlPanel = styled(Card)(({ theme }) => ({
+    position: 'sticky',
+    top: theme.spacing(2),
+    zIndex: 2,
+    marginBottom: theme.spacing(2),
+    border: `1px solid ${COLORS.border.primary}`,
+    boxShadow: 'none',
+    backgroundColor: COLORS.bg.secondary,
+    '&:hover': {
+        boxShadow: `0 1px 3px ${COLORS.bg.tertiary}`,
+    },
+}));
+
+interface CreateGroupDialogProps {
+    open: boolean;
+    onClose: () => void;
+    onCreateGroup: (groupName: string, groupLabel: string) => void;
+}
+
+const CreateGroupDialog: React.FC<CreateGroupDialogProps> = ({ open, onClose, onCreateGroup }) => {
+    const [groupName, setGroupName] = useState('');
+    const [groupLabel, setGroupLabel] = useState('');
+
+    const handleCreate = () => {
+        if (groupName && groupLabel) {
+            onCreateGroup(groupName.toLowerCase().replace(/\s+/g, '_'), groupLabel);
+            setGroupName('');
+            setGroupLabel('');
+            onClose();
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose}>
+            <DialogTitle>Create Group from Selection</DialogTitle>
+            <DialogContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Group Name"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        placeholder="e.g., nocturnal_animals"
+                        helperText="Internal name, use lowercase and underscores"
+                    />
+                    <TextField
+                        label="Group Label"
+                        value={groupLabel}
+                        onChange={(e) => setGroupLabel(e.target.value)}
+                        placeholder="e.g., Nocturnal Animals"
+                        helperText="Display name shown in the table header"
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Cancel</Button>
+                <Button 
+                    onClick={handleCreate} 
+                    variant="contained" 
+                    disabled={!groupName || !groupLabel}
+                    startIcon={<LocalOfferIcon />}
+                >
+                    Create Group
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+interface DetailPanelProps {
+    open: boolean;
+    onClose: () => void;
+    editedProduct: ExtendedProduct | null;
+    onSave: (product: ExtendedProduct) => void;
+}
+
+const DetailPanel: React.FC<DetailPanelProps> = ({ open, onClose, editedProduct, onSave }) => {
+    if (!editedProduct) return null;
+
+    const handleFieldChange = (fieldName: string, value: string) => {
+        const updatedProduct = {
+            ...editedProduct,
+            customFields: editedProduct.customFields.map(field => 
+                field.name === fieldName ? { ...field, value } : field
+            )
+        };
+        onSave(updatedProduct);
+    };
+
+    const handleSave = () => {
+        onSave(editedProduct);
+        onClose();
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+    };
+
+    const getFieldValue = (product: ExtendedProduct, fieldName: string): string => {
+        const field = product.customFields.find(f => f.name === fieldName);
+        return field?.value || '';
+    };
+
+    const allFields = editedProduct.customFields.map(field => ({
+        name: field.name,
+        label: field.label || field.name,
+        value: field.value || ''
+    }));
+
+    return (
+        <Drawer
+            anchor="right"
+            open={open}
+            onClose={onClose}
+            PaperProps={{
+                sx: {
+                    width: '400px',
+                    p: 3,
+                    bgcolor: COLORS.bg.secondary,
+                    borderLeft: `1px solid ${COLORS.border.primary}`,
+                }
+            }}
+        >
+            <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                mb: 3,
+                borderBottom: `1px solid ${COLORS.border.primary}`,
+                pb: 2
+            }}>
+                <Typography variant="h6" sx={{ 
+                    fontWeight: 600,
+                    color: COLORS.text.primary
+                }}>
+                    {getFieldValue(editedProduct, 'COMMON') || 'Details'} Details
+                </Typography>
+                <Box>
+                    <IconButton 
+                        size="small" 
+                        onClick={handleSave} 
+                        sx={{ 
+                            mr: 1,
+                            color: '#1f6feb',
+                            '&:hover': {
+                                color: '#388bfd',
+                                backgroundColor: 'rgba(56, 139, 253, 0.1)',
+                            }
+                        }}
+                    >
+                        <SaveIcon />
+                    </IconButton>
+                    <IconButton 
+                        size="small" 
+                        onClick={onClose}
+                        sx={{ 
+                            color: COLORS.text.secondary,
+                            '&:hover': {
+                                color: COLORS.text.primary,
+                                backgroundColor: COLORS.bg.hover,
+                            }
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {allFields.map(({ name, label, value }) => (
+                    <Box key={name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label={label}
+                            value={value}
+                            onChange={(e) => handleFieldChange(name, e.target.value)}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => copyToClipboard(value)}
+                                            sx={{
+                                                color: COLORS.text.secondary,
+                                                '&:hover': {
+                                                    color: COLORS.accent.blue,
+                                                    backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                                                }
+                                            }}
+                                        >
+                                            <ContentCopyIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                sx: {
+                                    color: COLORS.text.primary,
+                                    backgroundColor: COLORS.bg.primary,
+                                    '& fieldset': {
+                                        borderColor: COLORS.border.primary,
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: COLORS.text.secondary,
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: COLORS.accent.blue,
+                                    },
+                                }
+                            }}
+                            InputLabelProps={{
+                                sx: {
+                                    color: COLORS.text.secondary,
+                                    '&.Mui-focused': {
+                                        color: COLORS.accent.blue,
+                                    }
+                                }
+                            }}
+                        />
+                    </Box>
+                ))}
+            </Box>
+        </Drawer>
+    );
+};
+
+interface SelectionControlsProps {
+    selectedCount: number;
+    deactivatedCount: number;
+    onDeactivateSelected: () => void;
+    onActivateSelected: () => void;
+}
+
+const SelectionControls: React.FC<SelectionControlsProps> = ({
+    selectedCount,
+    deactivatedCount,
+    onDeactivateSelected,
+    onActivateSelected
+}) => {
+    return (
+        <Box component="div" sx={{ mb: 2, p: 2, bgcolor: COLORS.bg.secondary, borderRadius: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                Selection Controls
+            </Typography>
+            <Box component="div" sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={onDeactivateSelected}
+                    disabled={selectedCount === 0}
+                    startIcon={<VisibilityOffIcon />}
+                    sx={{
+                        borderColor: COLORS.text.secondary,
+                        color: COLORS.text.secondary,
+                        '&:hover': {
+                            borderColor: COLORS.text.primary,
+                            color: COLORS.text.primary,
+                            backgroundColor: 'transparent',
+                        },
+                        '&.Mui-disabled': {
+                            borderColor: `${COLORS.text.secondary}40`,
+                            color: `${COLORS.text.secondary}40`,
+                        }
+                    }}
+                >
+                    Deactivate Selected
+                </Button>
+                <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={onActivateSelected}
+                    disabled={selectedCount === 0}
+                    startIcon={<VisibilityIcon />}
+                    sx={{
+                        borderColor: COLORS.text.secondary,
+                        color: COLORS.text.secondary,
+                        '&:hover': {
+                            borderColor: COLORS.text.primary,
+                            color: COLORS.text.primary,
+                            backgroundColor: 'transparent',
+                        },
+                        '&.Mui-disabled': {
+                            borderColor: `${COLORS.text.secondary}40`,
+                            color: `${COLORS.text.secondary}40`,
+                        }
+                    }}
+                >
+                    Activate Selected
+                </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                {selectedCount} items selected • {deactivatedCount} items deactivated
+            </Typography>
+        </Box>
+    );
+};
+
+const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField }) => {
+    const [selectedProduct, setSelectedProduct] = useState<ExtendedProduct | null>(null);
+    const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
+    const [columnOrder, setColumnOrder] = useState<string[]>([]);
+    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+    const [deactivatedRows, setDeactivatedRows] = useState<Set<string>>(new Set());
+    const [filterText, setFilterText] = useState('');
+
+    useEffect(() => {
+        if (!products.length) return;
+
+        const availableFields = new Set<string>();
+        const standardFields: string[] = [];
+
+        // Add fields from all products
+        products.forEach(product => {
+            product.customFields.forEach(field => {
+                if (!availableFields.has(field.name)) {
+                    availableFields.add(field.name);
+                    standardFields.push(field.name);
+                }
+            });
+        });
+
+        setVisibleFields(availableFields);
+        setColumnOrder(standardFields);
+    }, [products]);
+
+    const handleProductSave = (updatedProduct: ExtendedProduct) => {
+        onAddCustomField(updatedProduct);
+    };
+
+    const handleRowClick = (product: ExtendedProduct) => {
+        setSelectedProduct(product);
+    };
+
+    const handleDeactivateSelected = () => {
+        const selectedIds = Array.from(selectedRows);
+        selectedIds.forEach(id => {
+            const product = products.find(p => p.id === id);
+            if (product) {
+                const updatedProduct = {
+                    ...product,
+                    customFields: [
+                        ...product.customFields,
+                        { name: 'deactivated', value: 'true', label: 'Deactivated' }
+                    ]
+                };
+                onAddCustomField(updatedProduct);
+                deactivatedRows.add(id);
+            }
+        });
+        setDeactivatedRows(new Set(Array.from(deactivatedRows)));
+        setSelectedRows(new Set());
+    };
+
+    const handleActivateSelected = () => {
+        const selectedIds = Array.from(selectedRows);
+        selectedIds.forEach(id => {
+            const product = products.find(p => p.id === id);
+            if (product) {
+                const updatedProduct = {
+                    ...product,
+                    customFields: product.customFields.filter(field => field.name !== 'deactivated')
+                };
+                onAddCustomField(updatedProduct);
+                deactivatedRows.delete(id);
+            }
+        });
+        setDeactivatedRows(new Set(Array.from(deactivatedRows)));
+        setSelectedRows(new Set());
+    };
+
+    const filteredProducts = products.filter(product => {
+        const searchMatch = !filterText || product.customFields.some(field => 
+            field.value.toLowerCase().includes(filterText.toLowerCase())
+        );
+        return searchMatch;
+    });
+
+    const getFieldValue = (product: ExtendedProduct, fieldName: string): string => {
+        const field = product.customFields.find(f => f.name === fieldName);
+        return field?.value || '';
+    };
+
+    const isDeactivated = (product: ExtendedProduct): boolean => {
+        return product.customFields.some(field => field.name === 'deactivated' && field.value === 'true');
+    };
+
+    return (
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <SelectionControls
+                selectedCount={selectedRows.size}
+                deactivatedCount={deactivatedRows.size}
+                onDeactivateSelected={handleDeactivateSelected}
+                onActivateSelected={handleActivateSelected}
+            />
+            <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+                <Table sx={{ minWidth: 650 }} size="small">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell padding="checkbox">
+                                <Checkbox
+                                    indeterminate={selectedRows.size > 0 && selectedRows.size < filteredProducts.length}
+                                    checked={selectedRows.size === filteredProducts.length}
+                                    onChange={(event) => {
+                                        if (event.target.checked) {
+                                            setSelectedRows(new Set(filteredProducts.map(p => p.id)));
+                                        } else {
+                                            setSelectedRows(new Set());
+                                        }
+                                    }}
+                                />
+                            </TableCell>
+                            {columnOrder.map((field) => (
+                                <TableCell key={field}>
+                                    {field}
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {filteredProducts.map((product) => {
+                            const isItemSelected = selectedRows.has(product.id);
+                            const isRowDeactivated = isDeactivated(product);
+
+                            return (
+                                <StyledTableRow
+                                    key={product.id}
+                                    selected={isItemSelected}
+                                    onClick={() => handleRowClick(product)}
+                                    className={isRowDeactivated ? 'deactivated' : ''}
+                                >
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            checked={isItemSelected}
+                                            onChange={(event) => {
+                                                if (event.target.checked) {
+                                                    const newSelectedRows = new Set(Array.from(selectedRows));
+                                                    newSelectedRows.add(product.id);
+                                                    setSelectedRows(newSelectedRows);
+                                                } else {
+                                                    const newSelectedRows = new Set(Array.from(selectedRows));
+                                                    newSelectedRows.delete(product.id);
+                                                    setSelectedRows(newSelectedRows);
+                                                }
+                                                event.stopPropagation();
+                                            }}
+                                            onClick={(event) => event.stopPropagation()}
+                                        />
+                                    </TableCell>
+                                    {columnOrder.map((field) => (
+                                        <TableCell key={field}>
+                                            {getFieldValue(product, field)}
+                                        </TableCell>
+                                    ))}
+                                </StyledTableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </Box>
+            <DetailPanel
+                open={!!selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+                editedProduct={selectedProduct}
+                onSave={handleProductSave}
+            />
+        </Box>
+    );
+};
+
+export default ProductList; 
