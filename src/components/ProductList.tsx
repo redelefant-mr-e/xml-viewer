@@ -43,7 +43,6 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
@@ -682,7 +681,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
     const [visibleFields, setVisibleFields] = useState<Set<string>>(
         new Set(['id', ...Array.from({ length: 20 }, (_, i) => `feld${i + 1}`)])
     );
-    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
     const [customColumns, setCustomColumns] = useState<Array<{name: string, label: string}>>([]);
     const [editingCell, setEditingCell] = useState<{
         animalId: string,
@@ -703,7 +702,6 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
     const [isCreateGroupDialogOpen, setIsCreateGroupDialogOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ExtendedProduct | null>(null);
     const [editColumnInfo, setEditColumnInfo] = useState<{name: string, currentLabel: string} | null>(null);
-    const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
 
     const handleSort = (field: string) => {
         if (isValidField(field)) {
@@ -1062,7 +1060,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
     };
 
     const handleProductSave = (updatedProduct: ExtendedProduct) => {
-        // Update standard fields
+        // Find the product index
         const productIndex = products.findIndex(p => p.id === updatedProduct.id);
         if (productIndex === -1) return;
 
@@ -1099,13 +1097,6 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
 
         // Close the panel
         setSelectedProduct(null);
-    };
-
-    const getColumnLabel = (field: string): string => {
-        if (fieldLabels[field]) {
-            return fieldLabels[field];
-        }
-        return customColumns.find(col => col.name === field)?.label || field;
     };
 
     const renderHeaderCell = (fieldName: string, label: string, sortable = false) => (
