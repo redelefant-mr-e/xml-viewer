@@ -1,6 +1,6 @@
 {
   "name": "xml-viewer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "homepage": "https://redelefant-mr-e.github.io/xml-viewer",
   "dependencies": {
