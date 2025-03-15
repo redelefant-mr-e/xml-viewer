@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ExtendedProduct, CustomField, Product } from '../types/Product';
+import { ExtendedProduct } from '../types/Product';
 import { 
     Table, 
     TableBody, 
@@ -7,7 +7,6 @@ import {
     TableContainer, 
     TableHead, 
     TableRow, 
-    Paper,
     Typography,
     Box,
     TableSortLabel,
@@ -29,12 +28,7 @@ import {
     Badge,
     Card,
     CardContent,
-    Drawer,
-    Collapse,
-    Select,
-    FormControl,
-    InputLabel,
-    OutlinedInput
+    Drawer
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
@@ -688,8 +682,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
     const [visibleFields, setVisibleFields] = useState<Set<string>>(
         new Set(['id', ...Array.from({ length: 20 }, (_, i) => `feld${i + 1}`)])
     );
-    const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);
-    const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [customColumns, setCustomColumns] = useState<Array<{name: string, label: string}>>([]);
     const [editingCell, setEditingCell] = useState<{
         animalId: string,
@@ -710,6 +703,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
     const [isCreateGroupDialogOpen, setIsCreateGroupDialogOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ExtendedProduct | null>(null);
     const [editColumnInfo, setEditColumnInfo] = useState<{name: string, currentLabel: string} | null>(null);
+    const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
 
     const handleSort = (field: string) => {
         if (isValidField(field)) {
@@ -1318,12 +1312,6 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
             </Box>
 
             <TagCloud>
-                <FieldTag
-                    label={getColumnLabel('id')}
-                    selected={visibleFields.has('id')}
-                    onClick={() => toggleField('id')}
-                    onDelete={() => toggleField('id')}
-                />
                 {Array.from({ length: 20 }, (_, i) => {
                     const fieldName = `feld${i + 1}`;
                     if (fieldLabels[fieldName]) {

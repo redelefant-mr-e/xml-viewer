@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Box, Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Container, Box, Typography, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, Link } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ProductList from './components/ProductList';
 import FileUpload from './components/FileUpload';
@@ -38,56 +38,87 @@ function App() {
 
       // Get the root element
       const rootElement = xmlDoc.documentElement;
-      if (!rootElement || !rootElement.children.length) {
+      if (!rootElement) {
         throw new Error('XML document is empty');
       }
 
-      // Find the first element that has child elements (this will be our record type)
-      const recordElements = Array.from(rootElement.children).filter(child => child.children.length > 0);
-      if (recordElements.length === 0) {
-        throw new Error('No valid records found in XML');
+      // Function to convert XML node to flat object
+      const nodeToObject = (node: Element): { [key: string]: string } => {
+        const obj: { [key: string]: string } = {};
+        Array.from(node.children).forEach(child => {
+          // Use the tag name as the key and text content as the value
+          obj[child.tagName] = child.textContent || '';
+        });
+        return obj;
+      };
+
+      // Get all elements that have child nodes (potential records)
+      const allNodes = Array.from(rootElement.getElementsByTagName('*'))
+        .filter(node => node.children.length > 0);
+
+      // If we have no nodes with children, treat the root element's direct children as one record
+      if (allNodes.length === 0 && rootElement.children.length > 0) {
+        const singleRecord = nodeToObject(rootElement);
+        const fieldNames = Object.keys(singleRecord);
+
+        // Create labels mapping
+        const labels: {[key: string]: string} = { id: 'ID' };
+        fieldNames.forEach((fieldName, index) => {
+          labels[`feld${index + 1}`] = fieldName;
+        });
+        setFieldLabels(labels);
+
+        // Create single product
+        const product: any = { id: '1' };
+        fieldNames.forEach((fieldName, index) => {
+          product[`feld${index + 1}`] = singleRecord[fieldName] || '';
+        });
+
+        setSourceProducts([product as Product]);
+        const extendedProducts = storageService.mergeWithSourceData([product as Product]);
+        setProducts(extendedProducts);
+      } else {
+        // Find the most common node type (likely to be our record type)
+        const nodeTypes = allNodes.map(node => node.tagName);
+        const recordType = nodeTypes.reduce((a, b) =>
+          nodeTypes.filter(v => v === a).length >= nodeTypes.filter(v => v === b).length ? a : b
+        );
+
+        // Get all records of the most common type
+        const records = Array.from(xmlDoc.getElementsByTagName(recordType))
+          .filter(node => node.children.length > 0)
+          .map(nodeToObject);
+
+        if (records.length === 0) {
+          throw new Error('No valid records found in XML');
+        }
+
+        // Get all unique field names from all records
+        const fieldNames = Array.from(new Set(
+          records.flatMap(record => Object.keys(record))
+        ));
+
+        // Create labels mapping
+        const labels: {[key: string]: string} = { id: 'ID' };
+        fieldNames.forEach((fieldName, index) => {
+          labels[`feld${index + 1}`] = fieldName;
+        });
+        setFieldLabels(labels);
+
+        // Convert to our product format
+        const productsData = records.map((record, index) => {
+          const product: any = { id: String(index + 1) };
+          fieldNames.forEach((fieldName, index) => {
+            product[`feld${index + 1}`] = record[fieldName] || '';
+          });
+          return product as Product;
+        });
+
+        setSourceProducts(productsData);
+        const extendedProducts = storageService.mergeWithSourceData(productsData);
+        setProducts(extendedProducts);
       }
 
-      // Get the tag name of the first record element
-      const recordTagName = recordElements[0].tagName;
-      const allRecords = xmlDoc.getElementsByTagName(recordTagName);
-
-      // Get all unique field names from the first record
-      const firstRecord = allRecords[0];
-      const fieldNames = Array.from(firstRecord.children).map(child => child.tagName);
-
-      // Create mapping between feld numbers and actual field names
-      const labels: {[key: string]: string} = { id: 'ID' };
-      fieldNames.forEach((fieldName, index) => {
-        labels[`feld${index + 1}`] = fieldName;
-      });
-      setFieldLabels(labels);
-
-      // Convert XML to our product format
-      const productsData = Array.from(allRecords).map((record, index) => {
-        // Create a unique ID if none exists
-        const id = String(index + 1);
-        
-        const product: any = { id };
-        
-        // Map XML fields to our format
-        fieldNames.forEach((fieldName, index) => {
-          const fieldElement = record.getElementsByTagName(fieldName)[0];
-          const value = fieldElement ? fieldElement.textContent : '';
-          
-          // Map to feld1, feld2, etc. format
-          product[`feld${index + 1}`] = value || '';
-        });
-        
-        return product as Product;
-      });
-
-      // Store source data
-      setSourceProducts(productsData);
-      
-      // Merge with custom fields from local storage
-      const extendedProducts = storageService.mergeWithSourceData(productsData);
-      setProducts(extendedProducts);
       storageService.updateLastSync();
       setLoading(false);
     } catch (err) {
@@ -138,7 +169,7 @@ function App() {
       const extendedProducts = storageService.mergeWithSourceData(sourceProducts);
       setProducts(extendedProducts);
     }
-  }, [sourceProducts]);
+  }, [sourceProducts, storageService]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -240,6 +271,35 @@ function App() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Footer */}
+      <Box 
+        sx={{ 
+          mt: 4, 
+          pt: 2, 
+          borderTop: '1px solid #d0d7de',
+          textAlign: 'center',
+          color: '#57606a'
+        }}
+      >
+        <Typography variant="body2">
+          © 2025{' '}
+          <Link 
+            href="https://www.red-elephant.se/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            sx={{ 
+              color: '#0969da',
+              textDecoration: 'none',
+              '&:hover': {
+                textDecoration: 'underline'
+              }
+            }}
+          >
+            Red Elephant
+          </Link>
+        </Typography>
+      </Box>
     </Container>
   );
 }
