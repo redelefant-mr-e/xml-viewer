@@ -1,46 +1,59 @@
-# Getting Started with Create React App
+# XML Viewer
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A simple and useful web application to validate, view, extend and manage XML data. 
+Important: You can modify the XML file (i.e. adding new fields, adding groups, etc.) without affecting the original XML.
+This application will instead build a local copy that you can download as XML or a CSV.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Flexible XML Parsing**: 
+  - Handles any XML structure automatically
+  - Works with both single records and multiple record sets
+  - Automatically detects and maps XML fields
 
-### `npm start`
+- **Dynamic Data Management**:
+  - Sort data by any column
+  - Filter data with advanced search capabilities
+  - Show/hide columns as needed
+  - Edit cell contents directly
+  - Add custom columns
+  - Create and manage groups
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Data Organization**:
+  - Activate/deactivate rows
+  - Group records with custom tags
+  - Sort by groups
+  - Bulk selection and operations
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- **Export Options**:
+  - Export to XML with preserved structure
+  - Export to CSV for spreadsheet compatibility
+  - Customizable export with selected columns only
 
-### `npm test`
+- **User-Friendly Interface**:
+  - Modern Material UI design
+  - Responsive layout
+  - Intuitive controls
+  - Copy cell contents with one click
+  - Detailed record view and edit panel
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Getting Started
 
-### `npm run build`
+1. Visit [https://redelefant-mr-e.github.io/xml-viewer](https://redelefant-mr-e.github.io/xml-viewer)
+2. Upload your XML file or provide a URL
+3. Start viewing and managing your data
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Data Persistence
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- All modifications are stored locally in your browser
+- Original data can be restored at any time
+- Custom fields and groups are preserved between sessions
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Version History
 
-### `npm run eject`
+- v1.0.1 - Bug fixes and code optimization
+- v1.0.0 - Initial release with complete feature set
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+---
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+© 2025 [Red Elephant](https://www.red-elephant.se/)
