@@ -28,7 +28,8 @@ import {
     Badge,
     Card,
     CardContent,
-    Drawer
+    Drawer,
+    TablePagination
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
@@ -702,6 +703,8 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
     const [isCreateGroupDialogOpen, setIsCreateGroupDialogOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ExtendedProduct | null>(null);
     const [editColumnInfo, setEditColumnInfo] = useState<{name: string, currentLabel: string} | null>(null);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(100);
 
     const handleSort = (field: string) => {
         if (isValidField(field)) {
@@ -1164,6 +1167,21 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
         });
     };
 
+    // Calculate the slice of data to show based on pagination
+    const paginatedProducts = filteredProducts.slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage
+    );
+
+    const handleChangePage = (event: unknown, newPage: number) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
     return (
         <Box sx={{ width: '100%', color: '#24292f' }}>
             <Box sx={{ 
@@ -1413,7 +1431,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredProducts.map((product) => (
+                        {paginatedProducts.map((product) => (
                             <StyledTableRow 
                                 key={product.id}
                                 sx={{
@@ -1490,6 +1508,20 @@ const ProductList: React.FC<ProductListProps> = ({ products, onAddCustomField, o
                     </TableBody>
                 </StyledTable>
             </StyledTableContainer>
+
+            <TablePagination
+                rowsPerPageOptions={[100, 200, 500]}
+                component="div"
+                count={filteredProducts.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                sx={{
+                    borderBottom: '1px solid #d0d7de',
+                    backgroundColor: '#f6f8fa',
+                }}
+            />
 
             <AddColumnDialog
                 open={isAddColumnDialogOpen}
